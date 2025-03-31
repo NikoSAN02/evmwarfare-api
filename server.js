@@ -125,7 +125,40 @@ app.post("/deposit", async (req, res) => {
   }
 });
 
-// --- Start Server ---
+app.post("/distribute-rewards", async (req, res) => {
+    try {
+        const { matchId, rankings } = req.body;
+
+        // Validate input
+        if (!matchId || typeof matchId !== 'string') {
+            return res.status(400).json({ error: "Missing or invalid 'matchId' in request body." });
+        }
+        if (!Array.isArray(rankings) || rankings.length === 0) {
+            return res.status(400).json({ error: "Missing or invalid 'rankings' in request body." });
+        }
+
+        // Call the smart contract function
+        const endpoint = `/contract/${CHAIN_ID}/${CONTRACT_ADDRESS}/write`;
+        const body = {
+            functionName: "distributeRewards",
+            args: [matchId, rankings],
+        };
+
+        const engineResult = await callEngine(endpoint, { method: 'POST', body });
+
+        // Send response back to client
+        res.status(200).json({
+            message: "Rewards distributed successfully!",
+            transactionId: engineResult.transactionId,
+        });
+
+    } catch (error) {
+        console.error("Error distributing rewards:", error);
+        const errorMessage = error.details?.error?.message || error.message || "Failed to distribute rewards.";
+        const statusCode = error.details?.statusCode || 500;
+        res.status(statusCode).json({ error: errorMessage });
+    }
+});
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
   console.log(`Using Engine: ${ENGINE_URL}`);
